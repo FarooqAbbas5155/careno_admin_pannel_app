@@ -14,9 +14,16 @@ Future<void> approvePayment(WithdrawRequestModel withdrawRequest)async{
 
     if(withdrawRequest.paymentMethod == 'Bank Transfer'){
 
-        await _updatePaymentStatus(hostId: withdrawRequest.hostId!, date: withdrawRequest.dateTime!, paymentStatus: 'accept', paymentAmount: withdrawRequest.amount!);
+      await acceptPayment(withdrawRequest);
 
     }else if(withdrawRequest.paymentMethod == 'M-pesa'){
+      await sendMoneyFromMpesa(withdrawRequest.amount!).then((value) async {
+        if(value){
+          await acceptPayment(withdrawRequest);
+        }else{
+          await rejectPayment(withdrawRequest);
+        }
+      });
 
     }else{
         throw Exception('withdraw payment method not supported ${withdrawRequest.paymentMethod}');
@@ -27,6 +34,11 @@ Future<void> approvePayment(WithdrawRequestModel withdrawRequest)async{
 
 Future<void> rejectPayment(WithdrawRequestModel withdrawRequest)async{
   await _updatePaymentStatus(hostId: withdrawRequest.hostId!, date: withdrawRequest.dateTime!, paymentStatus: 'reject', paymentAmount: withdrawRequest.amount!);
+}
+
+Future<void> acceptPayment(WithdrawRequestModel withdrawRequest)async{
+  await _updatePaymentStatus(hostId: withdrawRequest.hostId!, date: withdrawRequest.dateTime!, paymentStatus: 'accept', paymentAmount: withdrawRequest.amount!);
+
 }
 
 
@@ -86,11 +98,8 @@ Future<void> _updatePaymentStatus(
 }
 
 
-Future<void> sendMoneyFromMpesa()async{
-
-
-
-  Mpesa mpesa = Mpesa(
+Future<bool> sendMoneyFromMpesa(double amount)async{
+ Mpesa mpesa = Mpesa(
       shortCode: "601426",
       consumerKey: "VxSb94SoPku6ugjAAkwqDJoyTSWzXFQmsX8jtmrQsGpnI6rQ",
       consumerSecret: "3iHObDhr69hGXYYKi32aHP5zWztEEGG8rbtdPyEiTsZlShTxoYur0c7DrMg3kChE",
@@ -105,16 +114,16 @@ Future<void> sendMoneyFromMpesa()async{
 
   MpesaResponse _res = await mpesa.b2cTransaction(
       phoneNumber: '254708374149',
-      amount: 1000,
-      remarks: 'please',
+      amount: amount,
+      remarks: 'Careno',
       occassion: 'work',
       queueTimeOutURL: 'https://peternjeru.co.ke/safdaraja/api/callback.php',
       resultURL: 'https://peternjeru.co.ke/safdaraja/api/callback.php'
   );
 
-  print(_res.statusCode);
-  print(_res.rawResponse);
-  print(_res.responseDescription);
-
-
+  if(_res.statusCode == 200){
+    return true;
+  }else{
+    return false;
+  }
 }
